@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 #
-# Usage: mean_hr <LOGFILE>
+# Usage: hr_stats <LOGFILE>
 #
 # Parse a log file containing ANT+ data points from a heart rate
-# monitor, and print out the heart rate averaged over the period
-# of the log file.
+# monitor, and print out some heart rate statistics.
 
 from njcant.log_parser import parse_loglines
 from njcant.event_timer import add_realtimes_to_datapoint_list
-from njcant.hr_analysis import compute_mean_hr_bpm
+from njcant.hr_analysis import HeartBeatTimings
 from njcant.hrm_device import HrmDataPoint
 
 def main(log_filename):
 	hrm_data_points = [p for p in parse_loglines(open(log_filename)) if isinstance(p, HrmDataPoint)]
 	add_realtimes_to_datapoint_list(hrm_data_points)
-	mean_hr = compute_mean_hr_bpm(hrm_data_points)
-	print "Mean HR: %f bpm" % mean_hr
+	timings = HeartBeatTimings(hrm_data_points)
+	print timings
+	print "%f BPM, HRV=%fms" % (timings.compute_mean_hr_bpm(), timings.compute_hrv_ms())
 
 if __name__ == '__main__':
 	import sys
