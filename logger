@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+"""
+Log ANT+ data to a file
+
+Use an ANT+ USB stick to record broadcast data messages from one or more
+devices to a file.  Does not interpret the data, simply outputs the raw
+ANT+ message payload bytes to the log file.
+
+Usage: logger <LOG_FILE> <DEVICE_NAME> [DEVICE_NAME ...]
+
+The DEVICE_NAME arguments must be device type names such as "HRM" or "SC",
+see the DEVSPECS dict in logger_config.py.
+
+For best results, include only devices that are actually present.  If
+you include devices that aren't there, the ANT+ stick will continue to
+scan for them.  Scanning is expensive in radio time, and makes messages
+from those devices that are present more likely to be missed.
+
+This script is based on https://github.com/mvillalba/python-ant/blob/develop/demos/ant.core/07-rawmessage3.py
+"""
+
+import sys, time, datetime, Queue
+from ant.core import driver
+from ant.core import event
+from ant.core.constants import *
+from ant.core.message import *
+
+from logger_config import *
+
+msgq = Queue.Queue()
+
+# Event callback
+class MyCallback(event.EventCallback):
+	def process(self, msg):
+		msgq.put((time.time(), msg))
+
+# Initialize driver
+stick = driver.USB1Driver(SERIAL, log=LOG) # No debug, too much data
+stick.open()
+
+# Initialize event machine
+evm = event.EventMachine(stick)
+evm.registerCallback(MyCallback())
+evm.start()
+
+# Reset
+msg = SystemResetMessage()
+stick.write(msg.encode())
+time.sleep(1)
+
+def sendmsg(msg):
+	stick.write(msg.encode())
+
+def open_channel(stick, evm, number, devtype, period):
+	sendmsg(ChannelAssignMessage(number=number))
+	sendmsg(ChannelIDMessage(number=number, device_type=devtype))
+	sendmsg(ChannelSearchTimeoutMessage(number=number, timeout=255))
+	sendmsg(ChannelPeriodMessage(number=number, period=period))
+	sendmsg(ChannelFrequencyMessage(number=number, frequency=57))
+	sendmsg(ChannelOpenMessage(number=number))
+
+def main(logfile, devlist):
+	sendmsg(NetworkKeyMessage(key=NETKEY))
+
+	chan_to_dev = []
+	for devname in devlist:
+		device_type, period = DEVSPECS[devname]
+		open_channel(stick, evm, len(chan_to_dev), device_type, period)
+		chan_to_dev.append(devname)
+
+	logfh = open(logfile, 'a')
+
+	while True:
+		(timestamp, msg) = msgq.get()
+		if not isinstance(msg, ChannelBroadcastDataMessage):
+			continue
+		devname = chan_to_dev[msg.getChannelNumber()]
+		line = ' '.join(['%f'%timestamp, devname] + [str(ord(x)) for x in msg.getPayload()[1:]])
+		logfh.write(line + "\n")
+		logfh.flush()
+
+if __name__ == '__main__':
+	logfile = sys.argv[1]
+	devlist = sys.argv[2:]
+	main(logfile, devlist)
