@@ -1,0 +1,99 @@
+#!/usr/bin/env python
+"""
+Scan for and identify broadcasting ANT+ sensors, using the python-ant library
+
+This script is based on https://github.com/mvillalba/python-ant/blob/develop/demos/ant.core/07-rawmessage3.py
+"""
+
+import sys, time, datetime, Queue
+from ant.core import driver
+from ant.core import event
+from ant.core.constants import *
+from ant.core.message import *
+
+NETKEY = '\xB9\xA5\x21\xFB\xBD\x72\xC3\x45'
+
+class ScanningChannelState(object):
+	def __init__(self):
+		self.device_id = None
+		self.had_bcast_data = False
+		self.last_sent_idrequest = 0.0 # a long long time ago
+		
+class ScanningAntStick(object):
+	def __init__(self, serial_device):
+
+		# Event callback
+		msgq = Queue.Queue()
+		class MyCallback(event.EventCallback):
+			def process(self, msg):
+				msgq.put(msg)
+
+		self.serial_device = serial_device
+		self.msgq = msgq
+		self.open_channels = []
+
+		# Initialize driver
+		self.stick = driver.USB1Driver(serial_device, log=None)
+		self.stick.open()
+ 
+		# Initialize event machine
+		self.evm = event.EventMachine(self.stick)
+		self.evm.registerCallback(MyCallback())
+		self.evm.start()
+
+		# Reset
+		self._sendmsg(SystemResetMessage())
+		time.sleep(1)
+
+		# Set network key
+		self._sendmsg(NetworkKeyMessage(key=NETKEY))
+
+	def _sendmsg(self, msg):
+		self.stick.write(msg.encode())
+
+	def _open_scanning_channel(self, period=8070):
+		cnum = len(self.open_channels)
+		self._sendmsg(ChannelAssignMessage(number=cnum))
+		self._sendmsg(ChannelIDMessage(number=cnum, device_type=0)) # 0 is wildcard; any device type
+		self._sendmsg(ChannelSearchTimeoutMessage(number=cnum, timeout=255))
+		self._sendmsg(ChannelPeriodMessage(number=cnum, period=period))
+		self._sendmsg(ChannelFrequencyMessage(number=cnum, frequency=57))
+		self._sendmsg(ChannelOpenMessage(number=cnum))
+		self.open_channels.append(ScanningChannelState())
+		print "DEBUG: started using channel %d for scanning" % cnum
+
+	def scan_for_devices(self):
+		self._open_scanning_channel()
+		while True:
+			msg = self.msgq.get()
+			cnum = msg.getChannelNumber()
+			state = self.open_channels[cnum]
+			#print msg
+			#print repr([ord(x) for x in msg.getPayload()])
+			if isinstance(msg, ChannelBroadcastDataMessage):
+				if not state.had_bcast_data:
+					# The first time we've seen data on this channel
+					print "DEBUG: first bcast on channel %d: %s" % (cnum, repr([ord(x) for x in msg.getPayload()[1:]]))
+					state.had_bcast_data = True
+					# As this channel is now connected to a device, we'll need to use another channel to scan for other devices
+					self._open_scanning_channel()
+				if state.device_id is None and (state.last_sent_idrequest < time.time() - 1.0):
+					print "DEBUG: requesting details of device on channel %d" % cnum
+					msg = ChannelRequestMessage(number=cnum, message_id=MESSAGE_CHANNEL_ID)
+					self._sendmsg(msg)
+					state.last_sent_idrequest = time.time()
+			elif isinstance(msg, ChannelIDMessage):
+				# Response to device detail query
+				num = msg.getChannelNumber()
+				devtype = msg.getDeviceType() 
+				if devtype == 0:
+					# Nope, the stick hasn't worked out what device is connected yet.
+					continue
+				devnum = msg.getDeviceNumber()
+				state.device_id = (devtype, devnum)
+				print "Device on channel %d is type %d and uid %d" % (cnum, devtype, devnum)
+
+
+if __name__ == '__main__':
+	serial_device = sys.argv[1]
+	ScanningAntStick(serial_device).scan_for_devices()
