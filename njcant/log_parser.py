@@ -1,36 +1,32 @@
 import re
 
+from njcant.device_baseclass import AntDataPoint
 from njcant.hrm_device import HrmDataPoint
 
-devname2class = { 'HRM': HrmDataPoint }
+devtype2class = { 120: HrmDataPoint }
 
 def parse_loglines(line_source):
-	""" Parse the lines output by logger
+	""" Parse the lines output by the antlog script
 
-		Given an iterable of lines as written by the logger script, generate
-		HrmDataPoint objects representing the lines.
+		Given an iterable of lines as written by the antlog script, generate
+		AntDataPoint objects representing the lines.
 
-		Lines that can't be parsed into HrmDataPoint objects are returned as
-		strings.
+		Lines that don't look like ant data points are returned as strings.
 	"""
-	linere = re.compile(r'^([0-9.]+)\s+(\w+)((?:\s+\d+){8})$')
-	devname2prev = {}
-	prev_timestamp = None
+	linere = re.compile(r'^([0-9.]+)\s+([0-9.fp]+)((?:\s+\d+){8})$')
+	dev2prev = {}
 	for line in line_source:
 		hit = linere.match(line.strip())
 		if hit:
 			timestamp = float(hit.group(1))
-			devname = hit.group(2)
-			payload = hit.group(3).strip()
-			datapoint_class = devname2class.get(devname)
-			if datapoint_class:
-				prev_dp = devname2prev.get(devname)
-				dp = datapoint_class(timestamp, [int(x) for x in payload.split()], prev_dp)
-				devname2prev[devname] = dp
-				prev_timestamp = dp.timestamp
-				yield dp
-			else:
-				raise ValueError('unknown device name', (devname, line))
+			devspec = hit.group(2)
+			devtype = int(devspec.split('.')[0])
+			payload = [int(x) for x in hit.group(3).strip().split()]
+			datapoint_class = devtype2class.get(devtype, 'AntDataPoint')
+			prev_dp = dev2prev.get(devspec, None)
+			dp = datapoint_class(timestamp, payload, prev_dp)
+			dev2prev[devspec] = dp
+			yield dp
 		else:
 			yield line.strip()
 				
