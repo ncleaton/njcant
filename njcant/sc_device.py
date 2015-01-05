@@ -18,17 +18,16 @@ ets_specs = {
 }
 
 class SpeedCadenceDataPoint(AntDataPoint):
-	def __init__(self, timestamp, payload, prev_dp):
-		AntDataPoint.__init__(self, timestamp, payload)
+	def subclass_init(self, prev_dp):
+		payload = self.raw_payload
 
 		# The payload is 4 16-bit quantities: cumulative revolution count and
-		# time of last magnet-at-sensor event for both crank and wheel.
+		# time of last magnet-at-sensor event, for both crank and wheel.
 		self.raw_timecount = {
 			'crank': (payload[0] + 256*payload[1], payload[2] + 256*payload[3]),
 			'wheel': (payload[4] + 256*payload[5], payload[6] + 256*payload[7]),
 		}
 
-		self.ets = dict()
 		for name, timecount in self.raw_timecount.items():
 			time, count = timecount
 			prev_ets = None if prev_dp is None else prev_dp.ets[name]
@@ -41,10 +40,4 @@ class SpeedCadenceDataPoint(AntDataPoint):
 		return self.ets['wheel']
 
 	def __str__(self):
-		s = "SC: " + AntDataPoint.__str__(self)
-		for name in sorted(self.ets.keys()):
-			s += " %s={%s}" % (name, str(self.ets[name]))
-		return s
-
-	def event_timers(self):
-		return [self.ets[name] for name in sorted(self.ets.keys())]
+		return "SC: " + AntDataPoint.__str__(self)

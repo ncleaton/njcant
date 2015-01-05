@@ -76,10 +76,10 @@ def add_realtimes_to_datapoint_list(data_points):
 	"""
 	if len(data_points) == 0:
 		return
-	timers_in_device = len(data_points[0].event_timers())
+	timers_in_device = data_points[0].ets.keys()
 
-	for i in range(timers_in_device):
-		estimate_clock_offset([(dp.timestamp, dp.event_timers()[i]) for dp in data_points], True)
+	for t in timers_in_device:
+		estimate_clock_offset([(dp.timestamp, dp.ets[t]) for dp in data_points], True)
 
 
 def estimate_clock_offset(list_realtime_ets, set_last_at_realtime=True):

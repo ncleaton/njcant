@@ -25,7 +25,7 @@ def parse_loglines(line_source):
 			payload = [int(x) for x in hit.group(3).strip().split()]
 			datapoint_class = devtype2class.get(devtype, 'AntDataPoint')
 			prev_dp = dev2prev.get(devspec, None)
-			dp = datapoint_class(timestamp, payload, prev_dp)
+			dp = datapoint_class(timestamp=timestamp, devspec=devspec, payload=payload, prev_dp=prev_dp)
 			dev2prev[devspec] = dp
 			yield dp
 		else:

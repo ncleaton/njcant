@@ -10,8 +10,8 @@ hrm_beat_ets_spec = AntEventTimerSpec(
 )
 
 class HrmDataPoint(AntDataPoint):
-	def __init__(self, timestamp, payload, prev_dp):
-		AntDataPoint.__init__(self, timestamp, payload)
+	def subclass_init(self, prev_dp):
+		payload = self.raw_payload
 
 		self.raw_last_beat = payload[4] + 256*payload[5]
 		self.raw_beat_count = payload[6]
@@ -25,15 +25,13 @@ class HrmDataPoint(AntDataPoint):
 
 		prev_beat_ets = None if prev_dp is None else prev_dp.beat_ets
 		self.beat_ets = AntEventTimerSample(hrm_beat_ets_spec, self.raw_beat_count, self.raw_last_beat, prev_beat_ets)
+		self.ets['beat'] = self.beat_ets
 		
 	def __str__(self):
-		s = "HRM: " + AntDataPoint.__str__(self) + " hr=%d beats={%s}" % (self.raw_hr, str(self.beat_ets))
+		s = "HRM: " + AntDataPoint.__str__(self) + " hr=%d" % self.raw_hr
 		if self.raw_prev_beat is not None:
 			s += " prevat=%d" % self.raw_prev_beat
 		return s
-
-	def event_timers(self):
-		return [self.beat_ets]
 
 	def prev_beat_realtime(self):
 		"The real time of the beat before last, if available"

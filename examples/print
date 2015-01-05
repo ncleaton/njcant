@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+#
+# Usage: print <LOGFILE>
+#
+# Parse a log file containing ANT+ data points, and dump out the
+# parsed objects one per line.
+
+from njcant.log_parser import parse_loglines
+
+def main(log_filename):
+	for p in parse_loglines(open(log_filename)):
+		print p
+
+if __name__ == '__main__':
+	import sys
+	main(sys.argv[1])
+
