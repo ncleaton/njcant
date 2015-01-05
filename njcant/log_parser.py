@@ -30,9 +30,3 @@ def parse_loglines(line_source):
 			yield dp
 		else:
 			yield line.strip()
-
-if __name__ == '__main__':
-	# Test: parse ant log from stdin and print
-	import sys
-	for x in parse_loglines(sys.stdin):
-		print x
