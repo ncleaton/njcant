@@ -1,9 +1,10 @@
 import re
 
-from njcant.device_baseclass import AntDataPoint
-from njcant.hrm_device import HrmDataPoint
+from device_baseclass import AntDataPoint
+from hrm_device import HrmDataPoint
+from sc_device import SpeedCadenceDataPoint
 
-devtype2class = { 120: HrmDataPoint }
+devtype2class = { 120: HrmDataPoint, 121: SpeedCadenceDataPoint }
 
 def parse_loglines(line_source):
 	""" Parse the lines output by the antlog script
@@ -29,5 +30,9 @@ def parse_loglines(line_source):
 			yield dp
 		else:
 			yield line.strip()
-				
-				
+
+if __name__ == '__main__':
+	# Test: parse ant log from stdin and print
+	import sys
+	for x in parse_loglines(sys.stdin):
+		print x

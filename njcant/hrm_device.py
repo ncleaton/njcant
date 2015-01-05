@@ -1,6 +1,6 @@
 
-from njcant.event_timer import AntEventTimerSpec, AntEventTimerSample
-from njcant.device_baseclass import AntDataPoint
+from event_timer import AntEventTimerSpec, AntEventTimerSample
+from device_baseclass import AntDataPoint
 
 hrm_beat_ets_spec = AntEventTimerSpec(
 	event_desc       = 'beat',
@@ -11,7 +11,7 @@ hrm_beat_ets_spec = AntEventTimerSpec(
 
 class HrmDataPoint(AntDataPoint):
 	def __init__(self, timestamp, payload, prev_dp):
-		AntDataPoint.__init__(self, 'HRM', timestamp, payload)
+		AntDataPoint.__init__(self, timestamp, payload)
 
 		self.raw_last_beat = payload[4] + 256*payload[5]
 		self.raw_beat_count = payload[6]
@@ -27,7 +27,7 @@ class HrmDataPoint(AntDataPoint):
 		self.beat_ets = AntEventTimerSample(hrm_beat_ets_spec, self.raw_beat_count, self.raw_last_beat, prev_beat_ets)
 		
 	def __str__(self):
-		s = AntDataPoint.__str__(self) + " hr=%d beats={%s}" % (self.raw_hr, str(self.beat_ets))
+		s = "HRM: " + AntDataPoint.__str__(self) + " hr=%d beats={%s}" % (self.raw_hr, str(self.beat_ets))
 		if self.raw_prev_beat is not None:
 			s += " prevat=%d" % self.raw_prev_beat
 		return s

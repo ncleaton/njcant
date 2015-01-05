@@ -1,7 +1,7 @@
 import math
 
-from njcant.log_parser import parse_loglines
-from njcant.event_timer import add_realtimes_to_datapoint_list
+from log_parser import parse_loglines
+from event_timer import add_realtimes_to_datapoint_list
 
 class HeartBeatTimings(object):
 	def __init__(self, hrm_datapoint_iter):
