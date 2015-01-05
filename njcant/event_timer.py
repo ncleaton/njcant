@@ -8,6 +8,8 @@
 #
 # Code for dealing with this data at a device independent level goes here.
 
+from collections import defaultdict
+
 class AntEventTimerSpec(object):
 	"Specifies the behaviour of an ant+ event timer"
 	def __init__(self, event_desc, ticks_per_sec=1024.0, event_count_wrap=256, clock_wrap=256*256):
@@ -69,18 +71,24 @@ class AntEventTimerSample(object):
 def add_realtimes_to_datapoint_list(data_points):
 	""" Add event times in real time to timers within ANT samples
 
-		Given a list of AntDataPoint objects received from a particular
-		device, estimate the offset from real clock time for each independent
-		clock in the device, and set the last_at_realtime field in the
-		AntEventTimerSample object(s) embedded in each data point.
+		Given a list of AntDataPoint objects, estimate the offset from
+		real clock time for each device clock, and set the
+		last_at_realtime field in the AntEventTimerSample object(s)
+		embedded in each data point.
+
+		Currently assumes that devices with multiple timers can have
+		independent clocks for each one. This is probably wrong in
+		most cases, but it's the more conservative choice.
 	"""
-	if len(data_points) == 0:
-		return
-	timers_in_device = data_points[0].ets.keys()
+	# Split the embedded timer samples by source device and timer
+	timers = defaultdict(list)
+	for p in data_points:
+		for name, timer in p.ets.items():
+			timers[(p.devspec, name)].append((p.timestamp, timer))
 
-	for t in timers_in_device:
-		estimate_clock_offset([(dp.timestamp, dp.ets[t]) for dp in data_points], True)
-
+	# Estimate realtime offset for each timer set
+	for t in timers.values():
+		estimate_clock_offset(t, True)
 
 def estimate_clock_offset(list_realtime_ets, set_last_at_realtime=True):
 	""" Estimate event timer clock offset

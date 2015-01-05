@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+#
+# Usage: print_with_realtimes <LOGFILE>
+#
+# Parse a log file containing ANT+ data points, estimate the real
+# clock times of any event times in the data, and print it all out.
+
+from njcant.log_parser import parse_loglines
+from njcant.event_timer import add_realtimes_to_datapoint_list
+
+def main(log_filename):
+	points = list(parse_loglines(open(log_filename)))
+	add_realtimes_to_datapoint_list(points)
+	for p in points:
+		print p
+
+if __name__ == '__main__':
+	import sys
+	main(sys.argv[1])
+
